@@ -2,7 +2,8 @@
 # SPDX-License-Identifier: MIT
 # ibisOffice Web版セルフホスト用インストールスクリプト.
 #
-#   1. ビルド環境がなければ導入 (build-essential, unzip, rustup stable, wasm32 target, wasm-bindgen-cli)
+#   1. ビルド環境がなければ導入 (build-essential, curl, git, unzip, rustup stable, wasm32 target, wasm-bindgen-cli, node/npm)
+#      node/npm はディストリ版で依存競合する場合は NodeSource (Node 22 LTS) にフォールバック
 #   2. https://github.com/ibisjp/ibis-office.git を取得 (既存なら submodule 更新)
 #   3. scripts/build-web.sh 相当の手順で www/ をビルド (wasm + tsc + assets)
 #   4. 成果物を public-ibisoffice/ に配置し, 3367番ポートで静的配信 (COOP/COEP付き)
@@ -58,23 +59,57 @@ have() { command -v "$1" >/dev/null 2>&1; }
 
 export PATH="$HOME/.cargo/bin:/usr/local/bin:$PATH"
 
+install_node_npm() {
+  if have node && have npm; then
+    log "node/npm 済み: $(node --version) / $(npm --version)"
+    return 0
+  fi
+  # ディストリ版を試す. NodeSource などサードパーティリポジトリが入っていると
+  # nodejs/npm の依存解決で競合するため失敗しても即死させず段階的に進める.
+  log "nodejs / npm を導入 (ディストリ版)"
+  if ! DEBIAN_FRONTEND=noninteractive apt-get install -y nodejs npm; then
+    log "一括導入に失敗したため分割で再試行"
+    DEBIAN_FRONTEND=noninteractive apt-get install -y nodejs || true
+    DEBIAN_FRONTEND=noninteractive apt-get install -y npm || true
+  fi
+  if have node && have npm; then
+    log "node/npm 導入: $(node --version) / $(npm --version)"
+    return 0
+  fi
+  # フォールバック: NodeSource (Node 22 LTS). NodeSource 版は npm を同梱する.
+  log "ディストリ版で揃わないため NodeSource (Node 22 LTS) にフォールバック"
+  curl -fsSL https://deb.nodesource.com/setup_22.x -o /tmp/nodesource_setup.sh
+  DEBIAN_FRONTEND=noninteractive bash /tmp/nodesource_setup.sh
+  rm -f /tmp/nodesource_setup.sh
+  DEBIAN_FRONTEND=noninteractive apt-get install -y nodejs
+  have node && have npm || {
+    echo "error: node/npm の導入に失敗しました (手動で Node.js LTS を導入してください)" >&2
+    exit 1
+  }
+  log "node/npm 導入: $(node --version) / $(npm --version)"
+}
+
 install_system_deps() {
   if ! have apt-get; then
     log "apt-get がないためシステム依存の自動導入をスキップ"
     return 0
   fi
-  local missing=()
-  for c in gcc make pkg-config curl python3 git node npm unzip; do
-    have "$c" || missing+=("$c")
-  done
-  if [ "${#missing[@]}" -eq 0 ]; then
-    log "システム依存は充足済み"
-    return 0
-  fi
-  log "システム依存を導入: ${missing[*]}"
   apt-get update
+  log "基本依存を導入"
   DEBIAN_FRONTEND=noninteractive apt-get install -y \
-    build-essential pkg-config curl ca-certificates python3 git nodejs npm unzip
+    build-essential pkg-config curl ca-certificates python3 git unzip
+  install_node_npm
+
+  local need=(gcc make pkg-config curl python3 git node npm unzip)
+  local lack=()
+  for c in "${need[@]}"; do
+    have "$c" || lack+=("$c")
+  done
+  if [ "${#lack[@]}" -ne 0 ]; then
+    echo "error: 必要なコマンドが揃いません: ${lack[*]}" >&2
+    exit 1
+  fi
+  log "システム依存は充足済み"
 }
 
 install_rust() {
