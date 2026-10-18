@@ -23,6 +23,10 @@ WebGPU は **secure context（HTTPS または localhost）のみ**で動作す�
 このリポジトリを配置したホスト上で、以下の一括インストールを実行するだけ。
 
 ```sh
+mkdir -p /opt/ibisoffice/
+cd /opt/ibisoffice/
+curl -fsSL https://raw.githubusercontent.com/hirogura/ibisoffice-web/main/ibisoffice-install.sh -o /opt/ibisoffice/ibisoffice-install.sh
+chmod +x ibisoffice-install.sh
 ./ibisoffice-install.sh
 ```
 
