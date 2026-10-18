@@ -284,6 +284,27 @@ serve() {
   fi
 }
 
+# リモートから開くため tailscale serve で HTTPS 公開 (tailscale があれば).
+setup_tailscale() {
+  if [ "$NO_SERVE" = "1" ]; then
+    return 0
+  fi
+  if ! have tailscale; then
+    log "tailscale がないため HTTPS 公開設定をスキップ (ローカルのみで配信)"
+    return 0
+  fi
+  # 既に同一 https ポートの登録があれば再設定しない (ステータス行例: https://<host>:<port> (tailnet only))
+  if tailscale serve status 2>/dev/null | grep -qE "^https://[^ ]*:${PORT}( |$|\()"; then
+    log "tailscale serve 済み: $(tailscale serve status 2>/dev/null | grep ":${PORT}" | head -1)"
+    return 0
+  fi
+  if tailscale serve --bg "--https=${PORT}" "http://127.0.0.1:${PORT}" >/dev/null 2>&1; then
+    log "tailscale serve 設定: $(tailscale serve status 2>/dev/null | grep ":${PORT}" | head -1) (tailnet 内のみ)"
+  else
+    log "tailscale serve の設定に失敗しました (ローカル配信は継続します). 手動実行例: tailscale serve --bg --https=${PORT} http://127.0.0.1:${PORT}"
+  fi
+}
+
 main() {
   log "ROOT=$ROOT SRC_DIR=$SRC_DIR PORT=$PORT"
   if [ "$SKIP_BUILD" = "0" ] || [ "$NO_SERVE" = "0" ]; then
@@ -297,7 +318,8 @@ main() {
     deploy_public
   fi
   serve
-  log "完了: (1) ローカルなら http://localhost:${PORT} (2) リモートのブラウザからは tailscale serve の HTTPS 経由でお開きください (WebGPU対応ブラウザ: Chrome / Edge / Safari 26+)"
+  setup_tailscale
+  log "完了: (1) ローカルなら http://localhost:${PORT} (2) リモートなら tailscale serve の HTTPS (tailscale serve status で URL 確認) でお開きください (WebGPU対応ブラウザ: Chrome / Edge / Safari 26+)"
 }
 
 main
