@@ -25,7 +25,8 @@ WebGPU は **secure context（HTTPS または localhost）のみ**で動作す�
 ```sh
 mkdir -p /opt/ibisoffice/
 cd /opt/ibisoffice/
-curl -fsSL https://raw.githubusercontent.com/hirogura/ibisoffice-web/main/ibisoffice-install.sh -o /opt/ibisoffice/ibisoffice-install.sh
+curl -fsSL https://raw.githubusercontent.com/hirogura/ibisoffice-web/main/ibisoffice-install.sh -o ibisoffice-install.sh
+curl -fsSL https://raw.githubusercontent.com/hirogura/ibisoffice-web/main/serve-ibisoffice.py -o serve-ibisoffice.py
 chmod +x ibisoffice-install.sh
 ./ibisoffice-install.sh
 ```
@@ -37,7 +38,7 @@ chmod +x ibisoffice-install.sh
 3. 本家リポジトリ（submodule 含む）を `ibis-office/` に clone（既存なら pull 更新）
 4. Cargo.lock と同じ版の wasm-bindgen-cli を導入して `www/` をビルド（wasm + tsc + アイコン・アートボーダー素材）
 5. 成果物を `public-ibisoffice/` に配置
-6. systemd unit（`/etc/systemd/system/ibisoffice-web.service`）があれば再利用し、無ければ作る場合は手動で `serve-ibisoffice.py` を起動
+6. systemd unit（`/etc/systemd/system/ibisoffice-web.service`）がある場合はそれを再利用、無い場合は `serve-ibisoffice.py` を起動（nohup・再起動後は維持されないため永続化したい場合は unit 登録が推奨）
 
 主要オプション:
 
